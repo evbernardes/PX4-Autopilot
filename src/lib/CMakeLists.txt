@@ -1,6 +1,6 @@
 ############################################################################
 #
-#   Copyright (c) 2017 PX4 Development Team. All rights reserved.
+#   Copyright (c EXCLUDE_FROM_ALL) 2017 PX4 Development Team. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -23,51 +23,52 @@
 # COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
 # INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
 # BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
-# OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+# OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION EXCLUDE_FROM_ALL) HOWEVER CAUSED
 # AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE EXCLUDE_FROM_ALL) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 #
 ############################################################################
 
-add_subdirectory(airspeed)
-add_subdirectory(avoidance)
-add_subdirectory(battery)
-add_subdirectory(bezier)
-add_subdirectory(cdev)
-add_subdirectory(circuit_breaker)
-add_subdirectory(collision_prevention)
-add_subdirectory(component_information)
-add_subdirectory(controllib)
-add_subdirectory(conversion)
-add_subdirectory(crypto)
-add_subdirectory(drivers)
-add_subdirectory(field_sensor_bias_estimator)
-add_subdirectory(geo)
-add_subdirectory(hysteresis)
-add_subdirectory(l1)
-add_subdirectory(landing_slope)
-add_subdirectory(led)
-add_subdirectory(matrix)
-add_subdirectory(mathlib)
-add_subdirectory(mixer)
-add_subdirectory(mixer_module)
-add_subdirectory(motion_planning)
-add_subdirectory(output_limit)
-add_subdirectory(perf)
-add_subdirectory(pid)
-add_subdirectory(pid_design)
-add_subdirectory(pwm)
-add_subdirectory(rc)
-add_subdirectory(sensor_calibration)
-add_subdirectory(slew_rate)
-add_subdirectory(systemlib)
-add_subdirectory(system_identification)
-add_subdirectory(tecs)
-add_subdirectory(terrain_estimation)
-add_subdirectory(tunes)
-add_subdirectory(version)
-add_subdirectory(weather_vane)
-add_subdirectory(wind_estimator)
-add_subdirectory(world_magnetic_model)
+add_subdirectory(airspeed EXCLUDE_FROM_ALL)
+add_subdirectory(avoidance EXCLUDE_FROM_ALL)
+add_subdirectory(battery EXCLUDE_FROM_ALL)
+add_subdirectory(bezier EXCLUDE_FROM_ALL)
+add_subdirectory(cdev EXCLUDE_FROM_ALL)
+add_subdirectory(circuit_breaker EXCLUDE_FROM_ALL)
+add_subdirectory(collision_prevention EXCLUDE_FROM_ALL)
+add_subdirectory(component_information EXCLUDE_FROM_ALL)
+add_subdirectory(controllib EXCLUDE_FROM_ALL)
+add_subdirectory(conversion EXCLUDE_FROM_ALL)
+add_subdirectory(crc EXCLUDE_FROM_ALL)
+add_subdirectory(crypto EXCLUDE_FROM_ALL)
+add_subdirectory(drivers EXCLUDE_FROM_ALL)
+add_subdirectory(field_sensor_bias_estimator EXCLUDE_FROM_ALL)
+add_subdirectory(geo EXCLUDE_FROM_ALL)
+add_subdirectory(hysteresis EXCLUDE_FROM_ALL)
+add_subdirectory(l1 EXCLUDE_FROM_ALL)
+add_subdirectory(landing_slope EXCLUDE_FROM_ALL)
+add_subdirectory(led EXCLUDE_FROM_ALL)
+add_subdirectory(matrix EXCLUDE_FROM_ALL)
+add_subdirectory(mathlib EXCLUDE_FROM_ALL)
+add_subdirectory(mixer EXCLUDE_FROM_ALL)
+add_subdirectory(mixer_module EXCLUDE_FROM_ALL)
+add_subdirectory(motion_planning EXCLUDE_FROM_ALL)
+add_subdirectory(output_limit EXCLUDE_FROM_ALL)
+add_subdirectory(perf EXCLUDE_FROM_ALL)
+add_subdirectory(pid EXCLUDE_FROM_ALL)
+add_subdirectory(pid_design EXCLUDE_FROM_ALL)
+add_subdirectory(pwm EXCLUDE_FROM_ALL)
+add_subdirectory(rc EXCLUDE_FROM_ALL)
+add_subdirectory(sensor_calibration EXCLUDE_FROM_ALL)
+add_subdirectory(slew_rate EXCLUDE_FROM_ALL)
+add_subdirectory(systemlib EXCLUDE_FROM_ALL)
+add_subdirectory(system_identification EXCLUDE_FROM_ALL)
+add_subdirectory(tecs EXCLUDE_FROM_ALL)
+add_subdirectory(terrain_estimation EXCLUDE_FROM_ALL)
+add_subdirectory(tunes EXCLUDE_FROM_ALL)
+add_subdirectory(version EXCLUDE_FROM_ALL)
+add_subdirectory(weather_vane EXCLUDE_FROM_ALL)
+add_subdirectory(wind_estimator EXCLUDE_FROM_ALL)
+add_subdirectory(world_magnetic_model EXCLUDE_FROM_ALL)

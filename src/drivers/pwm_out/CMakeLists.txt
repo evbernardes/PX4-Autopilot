@@ -52,4 +52,10 @@ px4_add_module(
 		mixer
 		mixer_module
 		output_limit
+	PUBLICATIONS
+		"px4::msg::ActuatorOutputs /actuator_outputs"
+	SUBSCRIPTIONS
+		"px4::msg::ActuatorControls /actuator_controls_0"
+		"px4::msg::ActuatorControls /actuator_controls_1"
+		"px4::msg::ActuatorControls /actuator_controls_2"
 	)
