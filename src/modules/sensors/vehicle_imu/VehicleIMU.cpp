@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2020-2021 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2020-2022 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -115,8 +115,24 @@ void VehicleIMU::ParametersUpdate(bool force)
 
 		updateParams();
 
+		const auto accel_calibration_count = _accel_calibration.calibration_count();
+		const auto gyro_calibration_count = _gyro_calibration.calibration_count();
 		_accel_calibration.ParametersUpdate();
 		_gyro_calibration.ParametersUpdate();
+
+		if (accel_calibration_count != _accel_calibration.calibration_count()) {
+			// if calibration changed reset any existing learned calibration
+			for (auto &learned_cal : _accel_learned_calibration) {
+				learned_cal = {};
+			}
+		}
+
+		if (gyro_calibration_count != _gyro_calibration.calibration_count()) {
+			// if calibration changed reset any existing learned calibration
+			for (auto &learned_cal : _gyro_learned_calibration) {
+				learned_cal = {};
+			}
+		}
 
 		// constrain IMU integration time 1-10 milliseconds (100-1000 Hz)
 		int32_t imu_integration_rate_hz = constrain(_param_imu_integ_rate.get(),
@@ -231,9 +247,11 @@ void VehicleIMU::Run()
 		}
 	}
 
-	if (hrt_elapsed_time(&_in_flight_calibration_check_timestamp_last) > 1_s) {
-		SensorCalibrationUpdate();
-		_in_flight_calibration_check_timestamp_last = hrt_absolute_time();
+	if (_param_sens_imu_autocal.get()) {
+		if (hrt_elapsed_time(&_in_flight_calibration_check_timestamp_last) > 1_s) {
+			SensorCalibrationUpdate();
+			_in_flight_calibration_check_timestamp_last = hrt_absolute_time();
+		}
 	}
 }
 
@@ -683,76 +701,47 @@ void VehicleIMU::PrintStatus()
 
 void VehicleIMU::SensorCalibrationUpdate()
 {
-	if (_armed) {
-		for (int i = 0; i < _estimator_sensor_bias_subs.size(); i++) {
-			estimator_sensor_bias_s estimator_sensor_bias;
+	for (int i = 0; i < _estimator_sensor_bias_subs.size(); i++) {
+		estimator_sensor_bias_s estimator_sensor_bias;
 
-			if (_estimator_sensor_bias_subs[i].update(&estimator_sensor_bias)) {
-				// find corresponding accel bias
-				if ((estimator_sensor_bias.accel_device_id != 0)
-				    && (_accel_calibration.device_id() == estimator_sensor_bias.accel_device_id)) {
+		if (_estimator_sensor_bias_subs[i].update(&estimator_sensor_bias)
+		    && (hrt_elapsed_time(&estimator_sensor_bias.timestamp) < 1_s)) {
+			// find corresponding accel bias
+			if ((estimator_sensor_bias.accel_device_id != 0)
+			    && (_accel_calibration.device_id() == estimator_sensor_bias.accel_device_id)
+			    && (_armed || !_accel_calibration.calibrated())) {
+
+				if (estimator_sensor_bias.accel_bias_valid && estimator_sensor_bias.accel_bias_stable) {
 
 					const Vector3f bias{estimator_sensor_bias.accel_bias};
 					const Vector3f bias_variance{estimator_sensor_bias.accel_bias_variance};
 
-					const bool valid = (hrt_elapsed_time(&estimator_sensor_bias.timestamp) < 1_s) && estimator_sensor_bias.accel_bias_valid
-							   && estimator_sensor_bias.accel_bias_stable;
-
-					if (valid) {
-						const Vector3f offset_old{_accel_learned_calibration[i].offset};
-
-						_accel_learned_calibration[i].offset = _accel_calibration.BiasCorrectedSensorOffset(bias);
-						_accel_learned_calibration[i].bias_variance = bias_variance;
-						_accel_learned_calibration[i].valid = true;
-						_accel_cal_available = true;
-
-						if ((offset_old - _accel_learned_calibration[i].offset).longerThan(0.05f)) {
-							PX4_DEBUG("accel %d (%" PRIu32 ") new offset: [%.2f %.2f %.2f] (full bias [%.2f %.2f %.2f])",
-								  _instance, _accel_calibration.device_id(),
-								  (double)_accel_learned_calibration[i].offset(0),
-								  (double)_accel_learned_calibration[i].offset(1),
-								  (double)_accel_learned_calibration[i].offset(2),
-								  (double)bias(0), (double)bias(1), (double)bias(2));
-						}
-
-					} else {
-						_accel_learned_calibration[i].valid = false;
-					}
+					_accel_learned_calibration[i].offset = _accel_calibration.BiasCorrectedSensorOffset(bias);
+					_accel_learned_calibration[i].bias_variance = bias_variance;
+					_accel_learned_calibration[i].temperature = _status.temperature_accel;
+					_accel_learned_calibration[i].valid = true;
+					_accel_cal_available = true;
 				}
+			}
 
-				// find corresponding gyro calibration
-				if ((estimator_sensor_bias.gyro_device_id != 0)
-				    && (_gyro_calibration.device_id() == estimator_sensor_bias.gyro_device_id)) {
+			// find corresponding gyro calibration
+			if ((estimator_sensor_bias.gyro_device_id != 0)
+			    && (_gyro_calibration.device_id() == estimator_sensor_bias.gyro_device_id)
+			    && (_armed || !_gyro_calibration.calibrated())) {
+
+				if (estimator_sensor_bias.gyro_bias_valid && estimator_sensor_bias.gyro_bias_stable) {
+
 					const Vector3f bias{estimator_sensor_bias.gyro_bias};
 					const Vector3f bias_variance{estimator_sensor_bias.gyro_bias_variance};
 
-					const bool valid = (hrt_elapsed_time(&estimator_sensor_bias.timestamp) < 1_s) && estimator_sensor_bias.gyro_bias_valid
-							   && estimator_sensor_bias.gyro_bias_stable;
-
-					if (valid) {
-						const Vector3f offset_old{_gyro_learned_calibration[i].offset};
-
-						_gyro_learned_calibration[i].offset = _gyro_calibration.BiasCorrectedSensorOffset(bias);
-						_gyro_learned_calibration[i].bias_variance = bias_variance;
-						_gyro_learned_calibration[i].valid = true;
-						_gyro_cal_available = true;
-
-						if ((offset_old - _gyro_learned_calibration[i].offset).longerThan(0.01f)) {
-							PX4_DEBUG("gyro %d (%" PRIu32 ") new offset: [%.2f %.2f %.2f] (full bias [%.2f %.2f %.2f])",
-								  _instance, _gyro_calibration.device_id(),
-								  (double)_gyro_learned_calibration[i].offset(0),
-								  (double)_gyro_learned_calibration[i].offset(1),
-								  (double)_gyro_learned_calibration[i].offset(2),
-								  (double)bias(0), (double)bias(1), (double)bias(2));
-						}
-
-					} else {
-						_gyro_learned_calibration[i].valid = false;
-					}
+					_gyro_learned_calibration[i].offset = _gyro_calibration.BiasCorrectedSensorOffset(bias);
+					_gyro_learned_calibration[i].bias_variance = bias_variance;
+					_gyro_learned_calibration[i].temperature = _status.temperature_gyro;
+					_gyro_learned_calibration[i].valid = true;
+					_gyro_cal_available = true;
 				}
 			}
 		}
-
 	}
 
 
@@ -762,6 +751,8 @@ void VehicleIMU::SensorCalibrationUpdate()
 		bool initialised = false;
 		Vector3f offset_estimate{};
 		Vector3f bias_variance{};
+		float temperature_sum = 0;
+		int temperature_count = 0;
 
 		// apply all valid saved offsets
 		for (int i = 0; i < ORB_MULTI_MAX_INSTANCES; i++) {
@@ -780,17 +771,69 @@ void VehicleIMU::SensorCalibrationUpdate()
 						bias_variance(axis_index) *= k2;
 					}
 				}
+
+				if (PX4_ISFINITE(_accel_learned_calibration[i].temperature)) {
+					temperature_sum += _accel_learned_calibration[i].temperature;
+					temperature_count++;
+				}
 			}
 		}
 
-		if (initialised && (accel_cal_orig - offset_estimate).longerThan(0.05f)) {
+		if (initialised && ((accel_cal_orig - offset_estimate).longerThan(0.03f) || !_accel_calibration.calibrated())) {
 			if (_accel_calibration.set_offset(offset_estimate)) {
-				PX4_INFO("accel %d (%" PRIu32 ") offset committed: [%.2f %.2f %.2f]->[%.2f %.2f %.2f])",
+				float temperature = temperature_sum / temperature_count;
+
+				if (PX4_ISFINITE(temperature)) {
+					_accel_calibration.set_temperature(temperature);
+				}
+
+				PX4_INFO("accel %d (%" PRIu32 ") offset committed: [%.3f %.3f %.3f]->[%.3f %.3f %.3f])",
 					 _instance, _accel_calibration.device_id(),
 					 (double)accel_cal_orig(0), (double)accel_cal_orig(1), (double)accel_cal_orig(2),
 					 (double)offset_estimate(0), (double)offset_estimate(1), (double)offset_estimate(2));
 
-				_accel_calibration.ParametersSave();
+				// find appropriate calibration slot if not already set
+				if (_accel_calibration.calibration_index() < 0) {
+					uint32_t cal_device_ids[calibration::Accelerometer::MAX_SENSOR_COUNT] {};
+					bool cal_slot_match = false;
+
+					for (unsigned cal_index = 0; cal_index < calibration::Accelerometer::MAX_SENSOR_COUNT; cal_index++) {
+						char str[20] {};
+						sprintf(str, "CAL_%s%u_ID", "ACC", cal_index);
+						int32_t device_id_val = 0;
+
+						if (param_get(param_find_no_notification(str), &device_id_val) == PX4_OK) {
+							cal_device_ids[cal_index] = device_id_val;
+
+							if (cal_device_ids[cal_index] == _accel_calibration.device_id()) {
+								cal_slot_match = true;
+								_accel_calibration.set_calibration_index(cal_index);
+								break;
+							}
+						}
+					}
+
+					if (!cal_slot_match) {
+						// prefer slot that matches sensor instance
+						int accel_index = _sensor_accel_sub.get_instance();
+
+						if (cal_device_ids[accel_index] == 0) {
+							_accel_calibration.set_calibration_index(accel_index);
+
+						} else {
+							for (int cal_index = 0; cal_index < calibration::Accelerometer::MAX_SENSOR_COUNT; cal_index++) {
+								if (cal_device_ids[accel_index] == 0) {
+									_accel_calibration.set_calibration_index(cal_index);
+									break;
+								}
+							}
+						}
+					}
+				}
+
+				if (_accel_calibration.ParametersSave()) {
+					param_notify_changes();
+				}
 			}
 		}
 
@@ -809,6 +852,8 @@ void VehicleIMU::SensorCalibrationUpdate()
 		bool initialised = false;
 		Vector3f offset_estimate{};
 		Vector3f bias_variance{};
+		float temperature_sum = 0;
+		int temperature_count = 0;
 
 		// apply all valid saved offsets
 		for (int i = 0; i < ORB_MULTI_MAX_INSTANCES; i++) {
@@ -827,17 +872,69 @@ void VehicleIMU::SensorCalibrationUpdate()
 						bias_variance(axis_index) *= k2;
 					}
 				}
+
+				if (PX4_ISFINITE(_gyro_learned_calibration[i].temperature)) {
+					temperature_sum += _gyro_learned_calibration[i].temperature;
+					temperature_count++;
+				}
 			}
 		}
 
-		if (initialised && (gyro_cal_orig - offset_estimate).longerThan(0.01f)) {
+		if (initialised && ((gyro_cal_orig - offset_estimate).longerThan(0.01f) || !_gyro_calibration.calibrated())) {
 			if (_gyro_calibration.set_offset(offset_estimate)) {
-				PX4_INFO("gyro %d (%" PRIu32 ") offset committed: [%.2f %.2f %.2f]->[%.2f %.2f %.2f])",
+				float temperature = temperature_sum / temperature_count;
+
+				if (PX4_ISFINITE(temperature)) {
+					_gyro_calibration.set_temperature(temperature);
+				}
+
+				PX4_INFO("gyro %d (%" PRIu32 ") offset committed: [%.3f %.3f %.3f]->[%.3f %.3f %.3f])",
 					 _instance, _gyro_calibration.device_id(),
 					 (double)gyro_cal_orig(0), (double)gyro_cal_orig(1), (double)gyro_cal_orig(2),
 					 (double)offset_estimate(0), (double)offset_estimate(1), (double)offset_estimate(2));
 
-				_gyro_calibration.ParametersSave();
+				// find appropriate calibration slot if not already set
+				if (_gyro_calibration.calibration_index() < 0) {
+					uint32_t cal_device_ids[calibration::Gyroscope::MAX_SENSOR_COUNT] {};
+					bool cal_slot_match = false;
+
+					for (unsigned cal_index = 0; cal_index < calibration::Gyroscope::MAX_SENSOR_COUNT; cal_index++) {
+						char str[20] {};
+						sprintf(str, "CAL_%s%u_ID", "GYRO", cal_index);
+						int32_t device_id_val = 0;
+
+						if (param_get(param_find_no_notification(str), &device_id_val) == PX4_OK) {
+							cal_device_ids[cal_index] = device_id_val;
+
+							if (cal_device_ids[cal_index] == _gyro_calibration.device_id()) {
+								cal_slot_match = true;
+								_gyro_calibration.set_calibration_index(cal_index);
+								break;
+							}
+						}
+					}
+
+					if (!cal_slot_match) {
+						// prefer slot that matches sensor instance
+						int gyro_index = _sensor_gyro_sub.get_instance();
+
+						if (cal_device_ids[gyro_index] == 0) {
+							_gyro_calibration.set_calibration_index(gyro_index);
+
+						} else {
+							for (int cal_index = 0; cal_index < calibration::Gyroscope::MAX_SENSOR_COUNT; cal_index++) {
+								if (cal_device_ids[gyro_index] == 0) {
+									_gyro_calibration.set_calibration_index(cal_index);
+									break;
+								}
+							}
+						}
+					}
+				}
+
+				if (_gyro_calibration.ParametersSave()) {
+					param_notify_changes();
+				}
 			}
 		}
 
