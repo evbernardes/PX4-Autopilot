@@ -539,6 +539,13 @@ public:
 		R_z(2) = a * a - b * b - c * c + d * d;
 		return R_z;
 	}
+
+	Quaternion extract_component_right(const Vector<Type, 3> axis) {
+		const Quaternion &q = *this;
+		const Type s = axis.dot(q.imag())/axis.norm();
+		Quaternion q_new(q(0),s*axis(0),s*axis(1),s*axis(2));
+		return q_new.normalized();
+	}
 };
 
 using Quatf = Quaternion<float>;

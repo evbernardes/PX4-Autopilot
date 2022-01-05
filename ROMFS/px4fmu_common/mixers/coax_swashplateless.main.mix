@@ -1,0 +1,30 @@
+Swashplateless Coaxial Copter mixer
+- Two speed rotor modules (an upper CCW rotor and a lower CW rotor) control the thrust of the coaxial copter.
+- Speed difference between both rotors generates yaw rotation.
+- Dephased sinusoidal component on rotors create translation movements.
+- No mixer, since the speed rotor modules are controlled by their internal firmware (check iq module instead)
+===========================
+
+Left swashplate servomotor, pitch axis
+-------------
+M: 1
+S: 0 1  -10000  -10000      0 -10000  10000
+
+Right swashplate servomotor, roll axis
+-------------
+M: 1
+S: 0 0  10000  10000      0 -10000  10000
+
+Upper rotor (CCW)
+Mixing between yaw and thrust
+-------------
+M: 2
+S: 0 2  10000  10000      0 -10000  10000
+S: 0 3      0  20000 -10000 -10000  10000
+
+Lower rotor (CW)
+Mixing between yaw and thrust
+-------------
+M: 2
+S: 0 2  -10000  -10000      0 -10000  10000
+S: 0 3      0  20000 -10000 -10000  10000

@@ -68,7 +68,7 @@ function(px4_add_common_flags)
 		# Warnings
 		-Wall
 		-Wextra
-		-Werror
+		#-Werror
 
 		-Warray-bounds
 		-Wcast-align
@@ -89,6 +89,7 @@ function(px4_add_common_flags)
 		-Wno-missing-field-initializers
 		-Wno-missing-include-dirs # TODO: fix and enable
 		-Wno-unused-parameter
+        -Wno-implicit-fallthrough
 
 		)
 

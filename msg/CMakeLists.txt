@@ -37,6 +37,9 @@ cmake_policy(SET CMP0057 NEW)
 include(px4_list_make_absolute)
 
 set(msg_files
+    angles.msg
+    motor_temp.msg
+    vehicle_attitude_extra.msg
 	action_request.msg
 	actuator_armed.msg
 	actuator_controls.msg

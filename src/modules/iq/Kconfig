@@ -1,0 +1,5 @@
+menuconfig MODULES_IQ
+	bool "iq"
+	default n
+	---help---
+		Enable support for iq
