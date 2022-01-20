@@ -44,8 +44,8 @@
 /* Main Thread */
 static int spinner_thread_main(int argc, char *argv[])
 {
-	/* welcome user (warnx prints a line, including an appended\n, with variable arguments */
-	PX4_INFO("started");
+  /* welcome user (warnx prints a line, including an appended\n, with variable arguments */
+  PX4_INFO("started");
 
   if(init_system() != 0){
     thread_should_exit = true;

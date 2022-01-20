@@ -115,7 +115,10 @@ int iqtest_speed_thread_starter(int argc, char *argv[]){
 
 // usage: iqtest speed [speed_min] [speed_max] [speed_n] [pulse] [phase] [step_time] [go_backwards] [filename]
 // iqtest speed 0 0.4 5 0 0 3 1 test_backwards
+// iqtest speed 0.5 0.8 10 0 0 6 0 6fins_attitude
+// iqtest speed 0.1 0.1 1 0 0 1 0 test
 // usage: iqtest phase [phase_min] [phase_max] [phase_n] [step_time] [centering] [speed] [pulse] [filename]
 // usage: iqtest speedpulse [speed_min] [speed_max] [speed_n] [pulse_min] [pulse_max] [pulse_n] [phase] [step_time] [filename]
+
 
 

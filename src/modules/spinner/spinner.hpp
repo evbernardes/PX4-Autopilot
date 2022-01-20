@@ -153,7 +153,7 @@ Binv(B_inv_data);
 
 short int quat_mode = QUAT_NED;
 short int thrust_mode = THRUST_SPIN;
-short int goal_mode = GOAL_MANUAL;
+short int goal_mode = GOAL_SETPOINT;
 double rotor_velocity = 0.0f;
 static int time_0 = 0.0f;
 static int time_1 = 0.0f;

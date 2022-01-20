@@ -109,3 +109,5 @@ int iqtest_speedpulse_thread_starter(int argc, char *argv[])
   PX4_INFO("IQ Test thread started, speed-pulse type");
   return 0;
 }
+
+// iqtest speedpulse 0.7 0.7 6 0 0 1 0 10 4fins_attitude_1
