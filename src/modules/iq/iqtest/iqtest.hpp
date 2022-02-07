@@ -25,6 +25,7 @@
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_angular_velocity.h>
 #include <uORB/topics/sensor_combined.h>
+#include <uORB/topics/iq_motors_state.h>
 // #include <uORB/topics/wind_estimate.h>
 // #include <uORB/topics/parameter_update.h>
 // #include <uORB/topics/vehicle_global_position.h>
@@ -68,7 +69,8 @@ bool thread_can_exit = false;
 static int sensor_combined_sub_fd;
 static int vehicle_attitude_sub_fd;
 static int vehicle_angular_velocity_sub_fd;
-static px4_pollfd_struct_t fds[3];
+static int iq_motors_state_sub_fd;
+static px4_pollfd_struct_t fds[4];
 
 // test time
 static int start, stop;

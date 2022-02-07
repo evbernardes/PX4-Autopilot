@@ -20,6 +20,7 @@
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/sensor_combined.h>
 #include <uORB/topics/motor_temp.h>
+#include <uORB/topics/iq_motors_state.h>
 
 #include "comm/generic_interface.hpp"
 #include "comm/serial_interface.hpp"
@@ -38,6 +39,7 @@
 #define ACTUATOR_PID 0
 #define ACTUATOR_MANUAL 3
 #define ACTUATOR_SPINNER 5
+#define ACTUATOR_IQTEST 7
 #define IQ_CONTROL_SPEED 10
 #define IQ_CONTROL_VOLTS 11
 #define TIMEOUT 0.003
@@ -67,6 +69,7 @@ int init_system(float timeout, int sleep_time);
 bool is_coast = true;
 bool is_armed = false;
 bool was_armed = false;
+bool state_log = false;
 bool temp_is_dangerous = false;
 bool temp_was_dangerous = false;
 bool test_started = false;
@@ -111,12 +114,15 @@ struct orb_topic {
 int actuator_arm_sub_fd;
 int actuator_ctrl_manual_sub_fd;
 int actuator_ctrl_spinner_sub_fd;
+int actuator_ctrl_iqtest_sub_fd;
 int actuator_ctrl_sub_fd;
 // int motor_temp_sub_fd;
 // int actuator_ctrl_sub_fd;
 // int sensor_combined_sub_fd;
 // int vehicle_attitude_sub_fd;
 struct motor_temp_s motor_temp_raw;
+struct iq_motors_state_s iq_motors_state_raw;
 orb_advert_t temp_pub;
-px4_pollfd_struct_t fds[4];
+orb_advert_t iq_motors_state_pub;
+px4_pollfd_struct_t fds[5];
 

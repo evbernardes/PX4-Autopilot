@@ -12,6 +12,7 @@ int publish_actuators();
 #include "test_speed.cpp"
 #include "test_speedpulse.cpp"
 #include "test_random.cpp"
+#include "test_free.cpp"
 
 int iqtest_main(int argc, char *argv[]){
 
@@ -32,19 +33,43 @@ int iqtest_main(int argc, char *argv[]){
     }
 
     if (!strcmp(argv[1], "random")){
+      if (thread_running) {
+        PX4_INFO("already running\n");
+        return -1;
+      }
       return iqtest_random_thread_starter(argc, argv);
     }
 
     if (!strcmp(argv[1], "speed")) {
+      if (thread_running) {
+        PX4_INFO("already running\n");
+        return -1;
+      }
       return iqtest_speed_thread_starter(argc, argv);
     }
 
     if (!strcmp(argv[1], "speedpulse")) {
+      if (thread_running) {
+        PX4_INFO("already running\n");
+        return -1;
+      }
       return iqtest_speedpulse_thread_starter(argc, argv);
     }
 
     if (!strcmp(argv[1], "phase")) {
-        return iqtest_phase_thread_starter(argc, argv);
+      if (thread_running) {
+        PX4_INFO("already running\n");
+        return -1;
+      }
+      return iqtest_phase_thread_starter(argc, argv);
+    }
+
+    if (!strcmp(argv[1], "free")) {
+      if (thread_running) {
+        PX4_INFO("already running\n");
+        return -1;
+      }
+      return iqtest_free_thread_starter(argc, argv);
     }
 
     if (!strcmp(argv[1], "printmode")) {
@@ -72,7 +97,7 @@ static void usage(const char *reason) {
 	if (reason) {
 		fprintf(stderr, "%s\n", reason);
 	}
-	fprintf(stderr, "usage: iqtest {speedpulse|phase|stop|printmode|status}\n\n");
+	fprintf(stderr, "usage: iqtest {speed|speedpulse|phase|free|random|stop|printmode}\n\n");
 }
 
 /**
@@ -94,12 +119,15 @@ int test_startup(char* test_type){
   sensor_combined_sub_fd = orb_subscribe(ORB_ID(sensor_combined));
   vehicle_attitude_sub_fd = orb_subscribe(ORB_ID(vehicle_attitude));
   vehicle_angular_velocity_sub_fd = orb_subscribe(ORB_ID(vehicle_angular_velocity));
+  iq_motors_state_sub_fd = orb_subscribe(ORB_ID(iq_motors_state));
   orb_set_interval(sensor_combined_sub_fd, 1);
   orb_set_interval(vehicle_attitude_sub_fd, 1);
   orb_set_interval(vehicle_angular_velocity_sub_fd, 1);
+  orb_set_interval(iq_motors_state_sub_fd, 1);
   fds[0] = (px4_pollfd_struct_t) { .fd = sensor_combined_sub_fd,   .events = POLLIN };
   fds[1] = (px4_pollfd_struct_t) { .fd = vehicle_attitude_sub_fd,   .events = POLLIN };
   fds[2] = (px4_pollfd_struct_t) { .fd = vehicle_angular_velocity_sub_fd,   .events = POLLIN };
+  fds[3] = (px4_pollfd_struct_t) { .fd = iq_motors_state_sub_fd,   .events = POLLIN };
 
   thread_running = true;
   thread_should_exit = false;
@@ -115,7 +143,6 @@ int test_startup(char* test_type){
   parameter_print_all(parameters, N_PARAMETERS, fptr);
   fprintf(fptr, "rotor_speed_limits = [%.2f,%.2f], %d steps\n",speed_min * parameters[PROP_MAX_SPEED].value,speed_max * parameters[PROP_MAX_SPEED].value,speed_n);
   fprintf(fptr, "pulse = [%.2f,%.2f], %d steps\n",pulse_min * parameters[PROP_MAX_PULSE].value,pulse_max * parameters[PROP_MAX_PULSE].value,pulse_n);
-
   fprintf(fptr, "pulse_phase = [%.2f,%.2f]\n", phase_min, phase_max);
   fprintf(fptr, "step_time = %.2fs\n",step_time);
   fprintf(fptr, "slot_pause_time = %d seconds \n", plot_step);
@@ -124,7 +151,9 @@ int test_startup(char* test_type){
                 "qa \t qx \t qy \t qz \t "
                 "gyro_x \t gyro_y \t gyro_z \t "
                 "acc_x \t acc_y \t acc_z \t "
-                "angvel_x \t angvel_y \t angvel_z \n");
+                "angvel_x \t angvel_y \t angvel_z \t "
+                "iq_vel_up \t iq_vel_down \t iq_volts_up \t iq_volts_down \t "
+                "iq_pulse_up \t iq_pulse_down \t iq_phase_up \t iq_phase_down \t");
   fprintf(fptr, "***\n");
 
   start = hrt_absolute_time();
@@ -176,12 +205,16 @@ void write_test_line(){
       orb_copy(ORB_ID(sensor_combined), sensor_combined_sub_fd, &sensor_combined_raw);
       struct vehicle_angular_velocity_s vehicle_angular_velocity_raw;
       orb_copy(ORB_ID(vehicle_angular_velocity), vehicle_angular_velocity_sub_fd, &vehicle_angular_velocity_raw);
+      struct iq_motors_state_s iq_motors_state_raw;
+      orb_copy(ORB_ID(iq_motors_state), iq_motors_state_sub_fd, &iq_motors_state_raw);
 
       fprintf(fptr, "%d \t %d \t %f \t %f \t %f \t "
                     "%f \t %f \t %f \t %f \t "
                     "%f \t %f \t %f \t "
                     "%f \t %f \t %f \t "
-                    "%f \t %f \t %f \n",
+                    "%f \t %f \t %f \t "
+                    "%f \t %f \t %f \t %f \t "
+                    "%f \t %f \t %f \t %f \n",
               stop,
               plot_i,
               (double)speed*parameters[PROP_MAX_SPEED].value,
@@ -199,7 +232,15 @@ void write_test_line(){
               (double)sensor_combined_raw.accelerometer_m_s2[2],
               (double)vehicle_angular_velocity_raw.xyz[0],
               (double)vehicle_angular_velocity_raw.xyz[1],
-              (double)vehicle_angular_velocity_raw.xyz[2]);
+              (double)vehicle_angular_velocity_raw.xyz[2],
+              (double)iq_motors_state_raw.mean_velocity[0],
+              (double)iq_motors_state_raw.mean_velocity[1],
+              (double)iq_motors_state_raw.mean_volts[0],
+              (double)iq_motors_state_raw.mean_volts[1],
+              (double)iq_motors_state_raw.pulse_volts[0],
+              (double)iq_motors_state_raw.pulse_volts[1],
+              (double)iq_motors_state_raw.pulse_phase[0],
+              (double)iq_motors_state_raw.pulse_phase[1]);
       plot_start = hrt_absolute_time();
     }
   }
@@ -217,10 +258,10 @@ int publish_actuators()
 
 	// lazily publish _actuators only once available
 	if (_actuator_pub != nullptr) {
-		return orb_publish(ORB_ID(actuator_controls_3), _actuator_pub, &_actuators);
+		return orb_publish(ORB_ID(actuator_controls_iqtest), _actuator_pub, &_actuators);
 
 	} else {
-		_actuator_pub = orb_advertise(ORB_ID(actuator_controls_3), &_actuators);
+		_actuator_pub = orb_advertise(ORB_ID(actuator_controls_iqtest), &_actuators);
 
 		if (_actuator_pub != nullptr) {
 			return OK;

@@ -50,6 +50,10 @@ int iq_thread_main(int argc, char *argv[])
   memset(&motor_temp_raw, 0, sizeof(motor_temp_raw));
   temp_pub = orb_advertise(ORB_ID(motor_temp), &motor_temp_raw);
 
+  //
+  memset(&iq_motors_state_raw, 0, sizeof(iq_motors_state_raw));
+  iq_motors_state_pub = orb_advertise(ORB_ID(iq_motors_state), &iq_motors_state_raw);
+
   // Load parameters, set UART comm to motor, set ORB topics
   if(init_system(TIMEOUT, SLEEP_TIME) != 0){
     thread_should_exit = true;
@@ -91,21 +95,18 @@ int iq_thread_main(int argc, char *argv[])
                 struct actuator_controls_s actuator_raw;
                 if(actuator_control_id == ACTUATOR_MANUAL){
                     orb_copy(ORB_ID(actuator_controls_3), actuator_ctrl_manual_sub_fd, &actuator_raw);
-                    if (abs(actuator_raw.control[4] - control[4]) < 0.01f){ // control[4] == 0 if manual, == 1 if iq_test thread
-                        thrust_diff = actuator_raw.control[3] - control[3];
-                        memcpy(control, actuator_raw.control, sizeof control); // updates if control[4] matches
-                    }
+                    memcpy(control, actuator_raw.control, sizeof control); // updates if control[4] matches
+                    control[1] = -control[1];
+                } else if (actuator_control_id == ACTUATOR_IQTEST){
+                    orb_copy(ORB_ID(actuator_controls_iqtest), actuator_ctrl_sub_fd, &actuator_raw);
+                    memcpy(control, actuator_raw.control, sizeof control);
                     control[1] = -control[1];
                 } else if (actuator_control_id == ACTUATOR_PID){
                     orb_copy(ORB_ID(actuator_controls_0), actuator_ctrl_sub_fd, &actuator_raw);
                     memcpy(control, actuator_raw.control, sizeof control);
-                    // control[1] = -control[1];
                 } else if (actuator_control_id == ACTUATOR_SPINNER){
                     orb_copy(ORB_ID(actuator_controls_spinner), actuator_ctrl_spinner_sub_fd, &actuator_raw);
                     memcpy(control, actuator_raw.control, sizeof control);
-                    // control[1] = -control[1];
-                    // control[1] = (control[1]-control[0])/2;
-                    // control[0] = (control[1]+control[0]);
                 }
             }
 
@@ -176,6 +177,38 @@ int iq_main(int argc, char *argv[]) {
     return 0;
   }
 
+  if (!strcmp(argv[1], "state_log")) {
+    if (argc < 3) {
+      PX4_INFO("usage: iq state_log {on|off}\n");
+      return -1;
+
+    } else if (!thread_running) {
+      PX4_INFO("Thread not running\n");
+      return -1;
+
+    } else if (!strcmp(argv[2], "on")) {
+      if (state_log) {
+        PX4_INFO("already in logging state\n");
+      } else {
+        PX4_INFO("turning on state log\n");
+        state_log = true;
+      }
+
+    } else if (!strcmp(argv[2], "off")) {
+      if (!state_log) {
+        PX4_INFO("already not logging state\n");
+      } else {
+        PX4_INFO("turning off state log\n");
+        state_log = false;
+      }
+
+    } else {
+      PX4_INFO("usage: iq state_log {on|off}\n");
+      return -1;
+    }
+
+    return 0;
+  }
 
   if (!strcmp(argv[1], "switch")) {
     if (argc < 3) {
@@ -208,20 +241,20 @@ int iq_main(int argc, char *argv[]) {
         // return 0;
       }
 
-    } else if (!strcmp(argv[2], "test")) {
-      if (mode == MODE_TEST) {
-        PX4_INFO("already in test mode\n");
-        // return 0;
-      } else {
-        PX4_INFO("entering test mode\n");
-        mode = MODE_TEST;
-        control[4] = 1.0;
-        // return 0;
-      }
-    }
+    // } else if (!strcmp(argv[2], "test")) {
+    //   if (mode == MODE_TEST) {
+    //     PX4_INFO("already in test mode\n");
+    //     // return 0;
+    //   } else {
+    //     PX4_INFO("entering test mode\n");
+    //     mode = MODE_TEST;
+    //     control[4] = 1.0;
+    //     // return 0;
+    //   }
+    // }
 
-    else {
-      PX4_INFO("usage: iq switch {flight|roll|test}\n");
+    } else {
+      PX4_INFO("usage: iq switch {flight|roll}\n");
       return -1;
     }
 
@@ -301,8 +334,16 @@ int iq_main(int argc, char *argv[]) {
         actuator_control_id = ACTUATOR_SPINNER;
       }
 
+    } else if (!strcmp(argv[2], "test")) {
+      if (actuator_control_id == ACTUATOR_IQTEST) {
+        PX4_INFO("already using IQTEST actuator controls\n");
+      } else {
+        PX4_INFO("actuator controls changing to IQTEST\n");
+        actuator_control_id = ACTUATOR_IQTEST;
+      }
+
     } else {
-      PX4_INFO("usage: iq actuator {manual|pid|spinner}\n");
+      PX4_INFO("usage: iq actuator {manual|pid|spinner|test}\n");
       return -1;
     }
 
@@ -374,6 +415,9 @@ int iq_main(int argc, char *argv[]) {
         case ACTUATOR_SPINNER:
             PX4_INFO("actuator controls: spinner");
             break;
+        case ACTUATOR_IQTEST:
+            PX4_INFO("actuator controls: iqtest");
+            break;
     }
 
     switch(iq_control_mode){
@@ -384,6 +428,16 @@ int iq_main(int argc, char *argv[]) {
             PX4_INFO("closed loop controller: VOLTAGE");
             break;
     }
+
+    switch(state_log){
+        case true:
+            PX4_INFO("state log: ON");
+            break;
+        case false:
+            PX4_INFO("state log: OFF");
+            break;
+    }
+
 
     if (thread_running) {
         switch(mode){
@@ -413,5 +467,5 @@ static void usage(const char *reason) {
 	if (reason) {
 		fprintf(stderr, "%s\n", reason);
 	}
-	fprintf(stderr, "usage: iq {param|start|stop|status|switch|actuator|control|power}\n\n");
+	fprintf(stderr, "usage: iq {param|start|stop|status|switch|actuator|control|power|state_log}\n\n");
 }

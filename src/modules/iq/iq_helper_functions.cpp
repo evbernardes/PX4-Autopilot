@@ -102,6 +102,7 @@ void get_temperature()
   motor_temp_raw.tec[1] = tec2.temp_.get_reply();
   motor_temp_raw.tuc[0] = tuc1.uc_temp_.get_reply();
   motor_temp_raw.tuc[1] = tuc2.uc_temp_.get_reply();
+
   orb_publish(ORB_ID(motor_temp), temp_pub, &motor_temp_raw);
 
   // ask for new data
@@ -132,7 +133,7 @@ void set_commands(float *actuator_control)
   double velocity = 0, delta = 0, volts = 0;
   int sign = 1;
 
-  if ((mode == MODE_FLIGHT) || (mode == MODE_TEST)) {
+  if ((mode == MODE_FLIGHT)) {
       // Vehicle behavior goes here
       velocity  = thrust * prop_max_speed;
       volts = fmin(velocity / voltage_coef, prop_max_voltage);
@@ -173,6 +174,24 @@ void set_commands(float *actuator_control)
 
   vsc2.phase_.set(*com, phase - parameters[MOTOR_PHASE_DOWN].value);
   vsc2.amplitude_.set(*com, amplitude);
+
+  if(state_log){
+    iq_motors_state_raw.timestamp = hrt_absolute_time();
+    iq_motors_state_raw.tec[0] = motor_temp_raw.tec[0];
+    iq_motors_state_raw.tec[1] = motor_temp_raw.tec[1];
+    iq_motors_state_raw.tuc[0] = motor_temp_raw.tuc[0];
+    iq_motors_state_raw.tuc[1] = motor_temp_raw.tuc[1];
+    iq_motors_state_raw.iq_control_mode = iq_control_mode;
+    iq_motors_state_raw.mean_velocity[0] = -(velocity - delta);
+    iq_motors_state_raw.mean_velocity[1] = sign*(velocity + delta);
+    iq_motors_state_raw.mean_volts[0] = -(volts - delta / voltage_coef);
+    iq_motors_state_raw.mean_volts[1] = sign*(volts + delta / voltage_coef);
+    iq_motors_state_raw.pulse_volts[0] = amplitude;
+    iq_motors_state_raw.pulse_volts[1] = amplitude;
+    iq_motors_state_raw.pulse_phase[0] = phase - parameters[MOTOR_PHASE_UP].value;
+    iq_motors_state_raw.pulse_phase[1] = phase - parameters[MOTOR_PHASE_DOWN].value;
+    orb_publish(ORB_ID(iq_motors_state), iq_motors_state_pub, &iq_motors_state_raw);
+  }
 }
 
 // Send speed commands to the motors, and ask for temperature at the same time

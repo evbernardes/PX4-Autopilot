@@ -381,9 +381,18 @@ void control_attitude(){
 }
 
 matrix::Vector<float, 3> get_torque(){
+
+  matrix::Vector3f tau_p = q.conjugate_inversed(p.cross(pd) / p.dot(pd));
+
   matrix::Vector3f wb = e * (p.dot(w) / p.dot(e));
-  matrix::Vector3f tau_p = q.conjugate_inversed(p.cross(pd) / p.dot(pd)) * params[SPIN_KP].value;
-  matrix::Vector3f tau_d = -(w - wb) * params[SPIN_KD].value;
+  //matrix::Vector3f tau_d = (w - wb) * params[SPIN_KD].value;
+
+  matrix::Vector3f v = q.conjugate(e);
+  matrix::Vector3f vdot = q.conjugate(w.cross(e));
+  matrix::Vector3f tau_d = vdot - p.dot(vdot)*p;
+  tau_d = tau_d/(v+e).norm();
+
+
   matrix::Vector3f tau_thrust;
   if (thrust_mode == THRUST_SPIN){
     tau_thrust = (wd - wb) * params[SPIN_KS].value;
@@ -392,7 +401,7 @@ matrix::Vector<float, 3> get_torque(){
   }
 
   pot_energy = -(params[SPIN_KP].value/4)*log(p.dot(pd));
-  return tau_p + tau_d + tau_thrust;
+  return tau_p * params[SPIN_KP].value - tau_d * params[SPIN_KD].value + tau_thrust;
 }
 
 /**
@@ -409,72 +418,3 @@ float wrapTo180(float angle_deg){
   return angle_new - 180;
 }
 
-// /**
-//  ***************************************
-//  * PARAMETERS FUNCTIONS
-//  ***************************************
-//  */
-
-// // load single parameter
-// int parameter_load(parameter *param, bool print_to_console){
-//     param_t param_handle;
-//     param_handle = param_find(param->name);
-//     if (param_handle != PARAM_INVALID){
-//         float param_f;
-//         param_get(param_handle, &param_f);
-//         param->value = (double)param_f;
-//         if (print_to_console)
-//           PX4_INFO("%s set to %f", param->name, param->value);
-//     } else {
-//         PX4_WARN("%s parameter invalid", param->name);
-//         return -1;
-//     }
-//     return 0;
-// }
-
-// // load single parameter and load it to file
-// int parameter_load(parameter *param, FILE *fptr, bool print_to_console){
-//   int ret = parameter_load(param, print_to_console);
-//   if(ret == 0)
-//     fprintf(fptr, "%s = %f\n", param->name, param->value);
-//   return ret;
-// }
-
-// // load all parameters
-// int parameter_load_all(parameter *params, int n_parameters, bool print_to_console){
-//   PX4_INFO("Loading PARAMS list, %d parameters",N_PARAMETERS);
-//   int check = 0;
-//   for(int i = 0; i < n_parameters; i++){
-//     check = check + parameter_load(&params[i], print_to_console);
-//   }
-//   if(check != 0){
-//     PX4_WARN("%d PARAMS list could NOT be Loaded",check);
-//     return 2;
-//   }
-//   PX4_INFO("PARAMS list Loaded");
-//   return 0;
-// }
-
-// // print single parameter on console
-// int parameter_print(parameter param){
-//   PX4_INFO("%s set to %f", param.name, param.value);
-// }
-
-// // print single parameter on file
-// int parameter_print(parameter param, FILE *fptr){
-//   fprintf(fptr, "%s = %f\n", param.name, param.value);
-// }
-
-// // print all parameters on console
-// int parameter_print_all(parameter *params, int n_parameters){
-//   for (int i = 0; i < n_parameters; i++){
-//     parameter_print(params[i]);
-//   }
-// }
-
-// // print all parameters on file
-// int parameter_print_all(parameter *params, int n_parameters, FILE* fptr){
-//   for (int i = 0; i < n_parameters; i++){
-//     parameter_print(params[i], fptr);
-//   }
-// }
