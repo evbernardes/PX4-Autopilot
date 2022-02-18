@@ -21,6 +21,7 @@
 #include <uORB/topics/sensor_combined.h>
 #include <uORB/topics/motor_temp.h>
 #include <uORB/topics/iq_motors_state.h>
+#include <uORB/topics/debug_vect.h>
 
 #include "comm/generic_interface.hpp"
 #include "comm/serial_interface.hpp"
@@ -45,6 +46,10 @@
 #define TIMEOUT 0.003
 #define SLEEP_TIME 30000
 #define TOPICS_TIME 150
+// #define FREQ_MAX 1000
+// #define FREQ_DEFAULT 200
+#define USEC_MIN 250
+#define USEC_DEFAULT 4000
 
 /* Prototypes */
 #define float_eq(a,b) (abs(a - b) < 0.001) ? true:false)
@@ -59,9 +64,10 @@ int iq_thread_temp(int argc, char *argv[]);
 void enter_coast_mode();
 void get_temperature();
 void set_commands(float *actuator_control);
-void send_commands(float *actuator_control);
+int send_commands(float *actuator_control);
 int iq_reboot(float timeout, int sleep_time);
 int init_system(float timeout, int sleep_time);
+int publish_motors_state(int send_ret);
 // int parameter_load_all();
 // int parameter_print_all();
 // int parameter_print_all(FILE* fptr);
@@ -69,7 +75,7 @@ int init_system(float timeout, int sleep_time);
 bool is_coast = true;
 bool is_armed = false;
 bool was_armed = false;
-bool state_log = false;
+bool state_log = true;
 bool temp_is_dangerous = false;
 bool temp_was_dangerous = false;
 bool test_started = false;
@@ -78,17 +84,27 @@ short int iq_control_mode = IQ_CONTROL_VOLTS;
 
 // other variables
 int actuator_control_id = ACTUATOR_MANUAL;
-int error_counter = 0;
+int error_counter = 0; // eventually send it to iq_motors_control
 double thrust = 0.0f;
 double x_roll = 0.0f, y_pitch = 0.0f, z_yaw = 0.0f;//, roll_speed = 0, volts = 0;
 double amplitude = 0.0f, phase = 0.0f;
 double voltage_exponent = 1.0f;
-double q[4];
+double q[4]; // orientation
 double gyro[3];
 double acc[3];
-float control[5];// = {0, 0, 0, 0, 0};
+float control[5]; // actuator control messages to be received, initialized as {0, 0, 0, 0, 0};
 double thrust_diff = 0.0f;
+// int iq_freq = FREQ_DEFAULT;
+// int iq_usec = int(1E5 / iq_freq); // wait iq_usec microseconds at each cycle, for iq_freq Hz of frequency
+int iq_usec = USEC_DEFAULT; // wait iq_usec microseconds at each cycle, for iq_freq Hz of frequency
+int iq_freq = int(1E6 / iq_usec);
 
+// iq_motors_state variables
+// they are send to the motor and stored to publish to iq_motors_state
+double mean_velocity[2] = {0.0f, 0.0f};
+double mean_volts[2] = {0.0f, 0.0f};
+double pulse_volts[2] = {0.0f, 0.0f};
+double pulse_phase[2] = {0.0f, 0.0f};
 
 // IQ communication variables
 SerialInterface *com;
@@ -102,7 +118,6 @@ TemperatureMonitorUcClient tuc2(1);
 TemperatureEstimatorClient tec1(0);
 TemperatureEstimatorClient tec2(1);
 SystemControlClient sys(0);
-
 
 // uORB communication variables
 struct orb_topic {
@@ -122,7 +137,9 @@ int actuator_ctrl_sub_fd;
 // int vehicle_attitude_sub_fd;
 struct motor_temp_s motor_temp_raw;
 struct iq_motors_state_s iq_motors_state_raw;
+struct debug_vect_s debug_vect_raw;
 orb_advert_t temp_pub;
 orb_advert_t iq_motors_state_pub;
+orb_advert_t debug_vect_pub;
 px4_pollfd_struct_t fds[5];
 

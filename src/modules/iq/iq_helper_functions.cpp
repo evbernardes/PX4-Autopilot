@@ -49,6 +49,15 @@ int init_system(float timeout, int sleep_time){
   PX4_INFO("Opened %s with fd %d", uart_name1, com->get_fd());
   iq_reboot(timeout, sleep_time);
 
+  control[0] = 0.0;
+  control[1] = 0.0;
+  control[2] = 0.0;
+  control[3] = 0.0;
+  control[4] = 0.0;
+
+  // int send_ret = send_commands(control);
+  // if(send_ret != 0) PX4_WARN("serial send error %d", send_ret);
+
   // set ORB topics system
   actuator_arm_sub_fd = orb_subscribe(ORB_ID(actuator_armed));
   actuator_ctrl_sub_fd = orb_subscribe(ORB_ID(actuator_controls_0)); // PID control
@@ -62,12 +71,6 @@ int init_system(float timeout, int sleep_time){
   fds[1] = (px4_pollfd_struct_t) { .fd = actuator_ctrl_sub_fd,   .events = POLLIN };
   fds[2] = (px4_pollfd_struct_t) { .fd = actuator_ctrl_manual_sub_fd,   .events = POLLIN };
   fds[3] = (px4_pollfd_struct_t) { .fd = actuator_ctrl_spinner_sub_fd,   .events = POLLIN };
-
-  control[0] = 0.0;
-  control[1] = 0.0;
-  control[2] = 0.0;
-  control[3] = 0.0;
-  control[4] = 0.0;
 
   return parameter_load_all(parameters, N_PARAMETERS, true);
 }
@@ -118,10 +121,11 @@ void set_commands(float *actuator_control)
 {
   // parameters, for convenience
   double prop_max_speed = parameters[PROP_MAX_SPEED].value;
+  double prop_min_pulse = parameters[PROP_MIN_PULSE].value;
+  // double prop_max_pulse = parameters[PROP_MAX_PULSE].value;
   double prop_max_voltage = parameters[PROP_MAX_VOLTAGE].value;
   double voltage_coef = parameters[VOLTAGE_COEF].value;
   double pulse_max_coef = parameters[PULSE_MAX_COEF].value;
-  double prop_min_pulse = parameters[PROP_MIN_PULSE].value;
 
   // actuator 4 vector
   thrust  = actuator_control[3];
@@ -139,7 +143,10 @@ void set_commands(float *actuator_control)
       volts = fmin(velocity / voltage_coef, prop_max_voltage);
 
       amplitude = pow(x_roll * x_roll + y_pitch * y_pitch, voltage_exponent/2);
-      amplitude = (amplitude < prop_min_pulse) ? 0 : fmin(pulse_max_coef, amplitude)*volts;
+      amplitude = fmin(pulse_max_coef, amplitude)*volts;
+      amplitude = (amplitude > prop_min_pulse) ? amplitude : 0 ;
+      // amplitude = (amplitude < prop_max_pulse) ? amplitude : prop_max_pulse;
+      amplitude = (amplitude + volts < prop_max_voltage) ? amplitude : prop_max_voltage - volts;
       // phase = atan2(y_pitch, x_roll);
       phase = atan2(-y_pitch, x_roll);
       z_yaw = 0;
@@ -175,32 +182,24 @@ void set_commands(float *actuator_control)
   vsc2.phase_.set(*com, phase - parameters[MOTOR_PHASE_DOWN].value);
   vsc2.amplitude_.set(*com, amplitude);
 
-  if(state_log){
-    iq_motors_state_raw.timestamp = hrt_absolute_time();
-    iq_motors_state_raw.tec[0] = motor_temp_raw.tec[0];
-    iq_motors_state_raw.tec[1] = motor_temp_raw.tec[1];
-    iq_motors_state_raw.tuc[0] = motor_temp_raw.tuc[0];
-    iq_motors_state_raw.tuc[1] = motor_temp_raw.tuc[1];
-    iq_motors_state_raw.iq_control_mode = iq_control_mode;
-    iq_motors_state_raw.mean_velocity[0] = -(velocity - delta);
-    iq_motors_state_raw.mean_velocity[1] = sign*(velocity + delta);
-    iq_motors_state_raw.mean_volts[0] = -(volts - delta / voltage_coef);
-    iq_motors_state_raw.mean_volts[1] = sign*(volts + delta / voltage_coef);
-    iq_motors_state_raw.pulse_volts[0] = amplitude;
-    iq_motors_state_raw.pulse_volts[1] = amplitude;
-    iq_motors_state_raw.pulse_phase[0] = phase - parameters[MOTOR_PHASE_UP].value;
-    iq_motors_state_raw.pulse_phase[1] = phase - parameters[MOTOR_PHASE_DOWN].value;
-    orb_publish(ORB_ID(iq_motors_state), iq_motors_state_pub, &iq_motors_state_raw);
-  }
+  // iq_motors_state
+  mean_velocity[0] = -(velocity - delta);
+  mean_velocity[1] = sign*(velocity + delta);
+  mean_volts[0] = -(volts - delta / voltage_coef);
+  mean_volts[1] = sign*(volts + delta / voltage_coef);
+  pulse_volts[0] = amplitude;
+  pulse_volts[1] = amplitude;
+  pulse_phase[0] = phase - parameters[MOTOR_PHASE_UP].value;
+  pulse_phase[1] = phase - parameters[MOTOR_PHASE_DOWN].value;
+
 }
 
 // Send speed commands to the motors, and ask for temperature at the same time
-void send_commands(float *actuator_control) {
-  get_temperature();
+int send_commands(float *actuator_control) {
+  //get_temperature();
   if (is_armed) set_commands(actuator_control);
 
-  int send_ret = com->SendNow();
-  if(send_ret != 0) PX4_WARN("serial send error %d", send_ret);
+  return com->SendNow();
 }
 
 // put motors in coast mode
@@ -226,6 +225,80 @@ int iq_reboot(float timeout, int sleep_time){
     usleep(sleep_time);
     PX4_INFO("Motors modules (re)booted");
     return 0;
+}
+
+void set_motors_state_msg(int send_ret)
+{
+  iq_motors_state_raw.connection_state = send_ret;
+  iq_motors_state_raw.timestamp = hrt_absolute_time();
+  iq_motors_state_raw.tec[0] = motor_temp_raw.tec[0];
+  iq_motors_state_raw.tec[1] = motor_temp_raw.tec[1];
+  iq_motors_state_raw.tuc[0] = motor_temp_raw.tuc[0];
+  iq_motors_state_raw.tuc[1] = motor_temp_raw.tuc[1];
+  iq_motors_state_raw.iq_control_mode = iq_control_mode;
+  iq_motors_state_raw.mean_velocity[0] = mean_velocity[0];
+  iq_motors_state_raw.mean_velocity[1] = mean_velocity[1];
+  iq_motors_state_raw.mean_volts[0] = mean_volts[0];
+  iq_motors_state_raw.mean_volts[1] = mean_volts[1];
+  iq_motors_state_raw.pulse_volts[0] = pulse_volts[0];
+  iq_motors_state_raw.pulse_volts[1] = pulse_volts[1];
+  iq_motors_state_raw.pulse_phase[0] = pulse_phase[0];
+  iq_motors_state_raw.pulse_phase[1] = pulse_phase[1];
+}
+
+/**
+ * send commands
+ */
+int publish_motors_state(int send_ret)
+{
+  set_motors_state_msg(send_ret);
+  orb_publish(ORB_ID(iq_motors_state), iq_motors_state_pub, &iq_motors_state_raw);
+
+	// lazily publish _actuators only once available
+	if (iq_motors_state_pub != nullptr) {
+		return orb_publish(ORB_ID(iq_motors_state), iq_motors_state_pub, &iq_motors_state_raw);
+
+	} else {
+		iq_motors_state_pub = orb_advertise(ORB_ID(iq_motors_state), &iq_motors_state_raw);
+
+		if (iq_motors_state_pub != nullptr) {
+			return OK;
+
+		} else {
+			return -1;
+		}
+	}
+}
+
+void set_debug_vect_msg()
+{
+  debug_vect_raw.x = mean_volts[0];
+  debug_vect_raw.y = pulse_volts[0];
+  debug_vect_raw.z = pulse_phase[0];
+}
+
+/**
+ * send commands
+ */
+int publish_debug_vect()
+{
+  set_debug_vect_msg();
+  orb_publish(ORB_ID(debug_vect), debug_vect_pub, &debug_vect_raw);
+
+	// lazily publish _actuators only once available
+	if (iq_motors_state_pub != nullptr) {
+		return orb_publish(ORB_ID(debug_vect), debug_vect_pub, &debug_vect_raw);
+
+	} else {
+		debug_vect_pub = orb_advertise(ORB_ID(debug_vect), &debug_vect_raw);
+
+		if (debug_vect_pub != nullptr) {
+			return OK;
+
+		} else {
+			return -1;
+		}
+	}
 }
 
 /**

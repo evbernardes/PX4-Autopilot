@@ -44,6 +44,7 @@
 
 int iq_thread_main(int argc, char *argv[])
 {
+  int send_ret = 500;
   PX4_INFO("IQinetics Underactuated Propeller Thread Loading");
 
   // struct motor_temp_s motor_temp_raw;
@@ -51,8 +52,12 @@ int iq_thread_main(int argc, char *argv[])
   temp_pub = orb_advertise(ORB_ID(motor_temp), &motor_temp_raw);
 
   //
-  memset(&iq_motors_state_raw, 0, sizeof(iq_motors_state_raw));
-  iq_motors_state_pub = orb_advertise(ORB_ID(iq_motors_state), &iq_motors_state_raw);
+  // memset(&iq_motors_state_raw, 0, sizeof(iq_motors_state_raw));
+  // iq_motors_state_pub = orb_advertise(ORB_ID(iq_motors_state), &iq_motors_state_raw);
+
+  //
+  memset(&debug_vect_raw, 0, sizeof(debug_vect_raw));
+  debug_vect_pub = orb_advertise(ORB_ID(debug_vect), &debug_vect_raw);
 
   // Load parameters, set UART comm to motor, set ORB topics
   if(init_system(TIMEOUT, SLEEP_TIME) != 0){
@@ -68,8 +73,18 @@ int iq_thread_main(int argc, char *argv[])
     // main while loop for this thread
     while(!thread_should_exit)
     {
+    // if(send_ret != 500){
+    //   iq_motors_state_raw.connection_state = send_ret;
+    //   orb_publish(ORB_ID(iq_motors_state), iq_motors_state_pub, &iq_motors_state_raw);
+    // }
+
+    if (send_ret != 500 and state_log){
+      // publish_motors_state(send_ret);
+      publish_debug_vect();
+    }
+
     // handle errors
-		int poll_ret = px4_poll(fds, 3, TOPICS_TIME);
+		int poll_ret = px4_poll(fds, 4, TOPICS_TIME);
 		// /* handle the poll result */
 		if (poll_ret == 0) {  /* this means none of our providers is giving us data */
 			PX4_ERR("Got no data within a %ims", TOPICS_TIME);
@@ -112,12 +127,18 @@ int iq_thread_main(int argc, char *argv[])
 
             // if state changed from armed to unarmed, enter coast mode
             else if(was_armed) enter_coast_mode();
-            else usleep(100);
-            send_commands(control);
+            // else usleep(100);
+
+            send_ret = send_commands(control);
+            // if(send_ret != 0) PX4_WARN("serial send error %d", send_ret);
 
             // update was_armed to keep state changes in track
             was_armed = is_armed;
         }
+
+        // sleep iq_usec microseconds (default = 400, min = 100)
+        usleep(iq_usec);
+
 	}
 	PX4_INFO("exiting");
   thread_running = false;
@@ -166,7 +187,9 @@ int iq_main(int argc, char *argv[]) {
 
     daemon_task = px4_task_spawn_cmd("iq",
             SCHED_DEFAULT,
-            SCHED_PRIORITY_FAST_DRIVER - 1,
+            // SCHED_PRIORITY_FAST_DRIVER - 1,
+            SCHED_PRIORITY_SLOW_DRIVER - 1,
+						// SCHED_PRIORITY_ATTITUDE_CONTROL,
             2000,
             iq_thread_main,
             //(argv) ? (char *const *)&argv[2] : (char *const *)NULL);
@@ -386,6 +409,47 @@ int iq_main(int argc, char *argv[]) {
     return 0;
   }
 
+
+
+  // if (!strcmp(argv[1], "freq")) {
+  //   if (argc > 3)
+  //   {
+  //     PX4_INFO("usage: iq freq [FREQ in Hz]");
+  //     return -1;
+  //   }
+
+  //   double new_freq = atof(argv[2]);
+  //   if (new_freq > FREQ_MAX){
+  //     PX4_INFO("Max frequency is %.2f", FREQ_MAX);
+  //     return -1;
+  //   }
+
+  //   iq_freq = new_freq;
+  //   iq_usec = int(10E4 / iq_freq);
+
+  //   PX4_INFO("Running at freq = %iHz, usec = %i", iq_freq, iq_usec);
+  //   return 0;
+  // }
+
+  if (!strcmp(argv[1], "usec")) {
+    if (argc > 3)
+    {
+      PX4_INFO("usage: iq usec [sleeptime in microseconds]");
+      return -1;
+    }
+
+    double new_usec = atof(argv[2]);
+    if (new_usec < USEC_MIN){
+      PX4_INFO("Min sleeptime is %.2f microseconds", USEC_MIN);
+      return -1;
+    }
+    iq_usec = new_usec;
+    iq_freq = int(1E6 / iq_usec);
+
+    PX4_INFO("Running at freq = %iHz, usec = %i", iq_freq, iq_usec);
+    return 0;
+  }
+
   if (!strcmp(argv[1], "stop")) {
     if(is_armed)
     {
@@ -449,6 +513,8 @@ int iq_main(int argc, char *argv[]) {
                 break;
         }
 
+    PX4_INFO("Running at freq = %iHz, usec = %i", iq_freq, iq_usec);
+
     } else {
       PX4_INFO("stopped");
     }
@@ -467,5 +533,5 @@ static void usage(const char *reason) {
 	if (reason) {
 		fprintf(stderr, "%s\n", reason);
 	}
-	fprintf(stderr, "usage: iq {param|start|stop|status|switch|actuator|control|power|state_log}\n\n");
+	fprintf(stderr, "usage: iq {param|start|stop|status|switch|actuator|control|power|state_log|usec}\n\n");
 }

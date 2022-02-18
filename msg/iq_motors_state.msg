@@ -7,5 +7,6 @@ float32[2] pulse_volts
 float32[2] pulse_phase
 float32[2] tec
 float32[2] tuc
+uint64 connection_state
 
 # TOPICS iq_motors_state

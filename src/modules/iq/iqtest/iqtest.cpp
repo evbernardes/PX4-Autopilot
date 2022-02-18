@@ -33,43 +33,23 @@ int iqtest_main(int argc, char *argv[]){
     }
 
     if (!strcmp(argv[1], "random")){
-      if (thread_running) {
-        PX4_INFO("already running\n");
-        return -1;
-      }
       return iqtest_random_thread_starter(argc, argv);
     }
 
     if (!strcmp(argv[1], "speed")) {
-      if (thread_running) {
-        PX4_INFO("already running\n");
-        return -1;
-      }
       return iqtest_speed_thread_starter(argc, argv);
     }
 
     if (!strcmp(argv[1], "speedpulse")) {
-      if (thread_running) {
-        PX4_INFO("already running\n");
-        return -1;
-      }
       return iqtest_speedpulse_thread_starter(argc, argv);
     }
 
     if (!strcmp(argv[1], "phase")) {
-      if (thread_running) {
-        PX4_INFO("already running\n");
-        return -1;
-      }
-      return iqtest_phase_thread_starter(argc, argv);
+        return iqtest_phase_thread_starter(argc, argv);
     }
 
     if (!strcmp(argv[1], "free")) {
-      if (thread_running) {
-        PX4_INFO("already running\n");
-        return -1;
-      }
-      return iqtest_free_thread_starter(argc, argv);
+        return iqtest_free_thread_starter(argc, argv);
     }
 
     if (!strcmp(argv[1], "printmode")) {
@@ -154,7 +134,7 @@ int test_startup(char* test_type){
                 "angvel_x \t angvel_y \t angvel_z \t "
                 "iq_vel_up \t iq_vel_down \t iq_volts_up \t iq_volts_down \t "
                 "iq_pulse_up \t iq_pulse_down \t iq_phase_up \t iq_phase_down \t");
-  fprintf(fptr, "***\n");
+  fprintf(fptr, "\n***\n");
 
   start = hrt_absolute_time();
   plot_start = start;

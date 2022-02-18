@@ -448,6 +448,14 @@ public:
 	}
 
 	/**
+	 * Switch ENU to NED
+	 */
+	void switch_enu_ned()
+	{
+		*this = this->canonical();
+	}
+
+	/**
 	 * Return canonical form of the quaternion
 	 *
 	 * @return quaternion in canonical from

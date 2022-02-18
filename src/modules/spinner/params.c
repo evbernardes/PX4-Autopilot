@@ -42,80 +42,98 @@
 
 /**
  *
+ * @group Spinner Control
  */
 PARAM_DEFINE_FLOAT(SPIN_KP, 1.0f);
 
 /**
  *
+ * @group Spinner Control
  */
 PARAM_DEFINE_FLOAT(SPIN_KD, 0.1f);
 
 /**
  *
+ * @group Spinner Control
  */
 PARAM_DEFINE_FLOAT(SPIN_KS, 0.1f);
 
 /**
  *
+ * @group Spinner Control
  */
 PARAM_DEFINE_FLOAT(SPIN_KC, 0.1f);
 
 /**
  *
+ * @group Spinner Control
  */
 PARAM_DEFINE_FLOAT(SPIN_KI, 0.0f);
 
 /**
  *
+ * @group Spinner Parameters
  */
 PARAM_DEFINE_FLOAT(SPIN_ANG_MAX_DEG, 8.0f);
 
 /**
  *
+ * @group Spinner Parameters
  */
 PARAM_DEFINE_FLOAT(SPIN_JXX, 2.7209399e+00);
 /**
  *
+ * @group Spinner Parameters
  */
 PARAM_DEFINE_FLOAT(SPIN_JYY, 2.8050915e+00);
 /**
  *
+ * @group Spinner Parameters
  */
 PARAM_DEFINE_FLOAT(SPIN_JZZ, 2.5446860e-01);
 /**
  *
+ * @group Spinner Parameters
  */
 PARAM_DEFINE_FLOAT(PROP_JZZ, 1.3747044e-02);
 
 /**
  *
+ * @group Spinner Parameters
  */
 PARAM_DEFINE_FLOAT(PROP_HEIGHT, 0.145303f);
 /**
  *
+ * @group Spinner Parameters
  */
 PARAM_DEFINE_FLOAT(PROP_K_THRUST, 6.24e-06);
 /**
  *
+ * @group Spinner Parameters
  */
 PARAM_DEFINE_FLOAT(PROP_K_TORQUE, -1.08e-08);
 /**
  *
+ * @group Spinner Parameters
  */
 PARAM_DEFINE_FLOAT(PROP_K_RATIO, -0.00173);
 /**
  *
+ * @group Spinner Parameters
  */
 PARAM_DEFINE_FLOAT(PROP_MAX_INC, 0.175);
 /**
  *
+ * @group Spinner Parameters
  */
 PARAM_DEFINE_FLOAT(MAX_ALPHA_DEG, 10.0);
 /**
  *
+ * @group Spinner Parameters
  */
 PARAM_DEFINE_FLOAT(MAX_INCLINATION, 0.261799);
 /**
  *
+ * @group Spinner Parameters
  */
 PARAM_DEFINE_FLOAT(ANG_VEL_RATIO, 0.02);

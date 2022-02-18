@@ -9,6 +9,7 @@ struct parameter{
 };
 
 // function prototypes
+int publish_motors_state();
 int parameter_load(parameter *param, bool print_to_console);
 int parameter_load(parameter *param, FILE *ftpr, bool print_to_console);
 int parameter_load_all(parameter *params, int n_parameters, bool print_to_console);

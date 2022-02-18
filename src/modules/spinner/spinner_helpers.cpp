@@ -62,6 +62,7 @@ int init_system(){
 	memset(&actuator_control, 0, sizeof(actuator_control));
 	memset(&att, 0, sizeof(att));
 	memset(&ang_vel, 0, sizeof(ang_vel));
+	memset(&visual_odom, 0, sizeof(visual_odom));
 
   /* publish actuator controls with zero values */
 	for (unsigned i = 0; i < actuator_controls_s::NUM_ACTUATOR_CONTROLS; i++) {
@@ -70,23 +71,22 @@ int init_system(){
 	}
   actuator_control.control[4] = 1.0f;
 
-  // actuator_pub = orb_advertise(ORB_ID_VEHICLE_ATTITUDE_CONTROLS, &actuators);
-  // actuator_pub = orb_advertise(ORB_ID_VEHICLE_ATTITUDE_CONTROLS, &actuator_control);
-	// rates_pub = orb_advertise(ORB_ID(vehicle_rates_setpoint), &rates_sp);
-
   /* subscribe to topics. */
   att_sub_fd = orb_subscribe(ORB_ID(vehicle_attitude));
+  visual_odom_sub_fd = orb_subscribe(ORB_ID(vehicle_visual_odometry));
   att_sp_sub_fd = orb_subscribe(ORB_ID(vehicle_attitude_setpoint)); // manual control
   ang_vel_sub_fd = orb_subscribe(ORB_ID(vehicle_angular_velocity));
   ctrl_sub_fd = orb_subscribe(ORB_ID(actuator_controls_3)); // manual control
   orb_set_interval(att_sub_fd, 1);
+  orb_set_interval(visual_odom_sub_fd, 1);
   orb_set_interval(att_sp_sub_fd, 1);
   orb_set_interval(ang_vel_sub_fd, 1);
   orb_set_interval(ctrl_sub_fd, 1);
   fds[0] = (px4_pollfd_struct_t) { .fd = att_sub_fd, .events = POLLIN };
-  fds[1] = (px4_pollfd_struct_t) { .fd = att_sp_sub_fd, .events = POLLIN };
-  fds[2] = (px4_pollfd_struct_t) { .fd = ang_vel_sub_fd, .events = POLLIN };
-  fds[3] = (px4_pollfd_struct_t) { .fd = ctrl_sub_fd, .events = POLLIN };
+  fds[1] = (px4_pollfd_struct_t) { .fd = visual_odom_sub_fd, .events = POLLIN };
+  fds[2] = (px4_pollfd_struct_t) { .fd = att_sp_sub_fd, .events = POLLIN };
+  fds[3] = (px4_pollfd_struct_t) { .fd = ang_vel_sub_fd, .events = POLLIN };
+  fds[4] = (px4_pollfd_struct_t) { .fd = ctrl_sub_fd, .events = POLLIN };
 
 	uORB::Subscription parameter_update_sub{ORB_ID(parameter_update)};
 
@@ -151,6 +151,10 @@ static int read_topics(){
   orb_copy(ORB_ID(vehicle_attitude_setpoint), att_sp_sub_fd, &att_sp);
   orb_copy(ORB_ID(vehicle_angular_velocity), ang_vel_sub_fd, &ang_vel);
   orb_copy(ORB_ID(actuator_controls_3), ctrl_sub_fd, &actuator_manual);
+  orb_copy(ORB_ID(vehicle_visual_odometry), visual_odom_sub_fd, &visual_odom);
+
+
+
   // orb_copy(ORB_ID(actuator_controls_3), ctrl_sub_fd, &actuator_raw);
 
   if (quat_mode == QUAT_NED){

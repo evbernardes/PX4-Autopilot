@@ -80,7 +80,7 @@ private:
 
 		if (air_data.timestamp > 0) {
 			msg.altitude_monotonic = air_data.baro_alt_meter;
-
+			// msg.altitude_monotonic = 500;
 			air_data_updated = true;
 		}
 

@@ -65,11 +65,14 @@
 #include <uORB/uORB.h>
 // #include <mavlink_shell.h>
 #include <uORB/topics/vehicle_attitude_extra.h>
+#include <uORB/topics/vehicle_odometry.h>
 #include "spinner_parameters.hpp"
 
 #define QUAT_ENU 0
 #define QUAT_NED 1
 #define QUAT_NULL -1
+#define QUAT_EKF 5
+#define QUAT_VISUAL 10
 #define THRUST_SPIN 0
 #define THRUST_CONSTANT 1
 #define GOAL_MANUAL 0
@@ -97,6 +100,7 @@ static int deamon_task;				/**< Handle of deamon task / thread */
 static struct actuator_controls_s actuator_manual;
 static struct actuator_controls_s actuator_control;
 static struct vehicle_attitude_s att;
+static struct vehicle_odometry_s visual_odom;
 // static struct vehicle_attitude_s att_sp;
 static struct vehicle_attitude_extra_s att_extra;
 static struct vehicle_angular_velocity_s ang_vel;
@@ -110,8 +114,9 @@ static int att_sub_fd;
 static int ang_vel_sub_fd;
 static int ctrl_sub_fd;
 static int att_sp_sub_fd;
+static int visual_odom_sub_fd;
 
-static px4_pollfd_struct_t fds[4];
+static px4_pollfd_struct_t fds[5];
 
 matrix::Quaternionf Q_a(matrix::Vector3f v);
 matrix::Quaternionf Q_a(matrix::Quaternionf q);
@@ -152,6 +157,7 @@ Binv(B_inv_data);
 // static matrix::SquareMatrix<float, 3> J_;
 
 short int quat_mode = QUAT_NED;
+short int quat_source = QUAT_EKF;
 short int thrust_mode = THRUST_SPIN;
 short int goal_mode = GOAL_SETPOINT;
 double rotor_velocity = 0.0f;

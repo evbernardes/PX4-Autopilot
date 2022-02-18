@@ -78,6 +78,7 @@ static int i, j;
 static int plot_i;
 int plot_start;
 int plot_step = 5;
+int sleep_time = 50;
 bool zero_pulse;
 char test_filename[40] = "test";
 
