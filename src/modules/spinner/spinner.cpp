@@ -67,7 +67,7 @@ static int spinner_thread_main(int argc, char *argv[])
 
 			if (fds[0].revents & POLLIN) {/* only run controller if attitude changed */
         read_topics(); // reads manual input, angular velocity and actuator
-        set_att_message();
+        // set_att_message();
         control_attitude();
         publish_actuators();
 			}
@@ -95,7 +95,7 @@ static void usage(const char *reason)
 		fprintf(stderr, "%s\n", reason);
 	}
 
-	fprintf(stderr, "usage: spinner {start|stop|status|switch|param|thrust|goal}\n\n");
+	fprintf(stderr, "usage: spinner {start|stop|status|att|param|thrust|goal}\n\n");
 }
 
 /**
@@ -174,41 +174,41 @@ int spinner_main(int argc, char *argv[])
 		return 0;
   }
 
-  if (!strcmp(argv[1], "switch")) {
+  if (!strcmp(argv[1], "att")) {
     if (argc < 3) {
-      PX4_INFO("usage: spinner switch {enu|ned}\n");
+      PX4_INFO("usage: spinner att {ekf|visual|null}\n");
       return -1;
 
     } else if (!thread_running) {
       PX4_INFO("Thread not running\n");
       return -1;
 
-    } else if (!strcmp(argv[2], "enu")) {
-      if (quat_mode == QUAT_ENU) {
-        PX4_INFO("already in ENU frame\n");
+    } else if (!strcmp(argv[2], "ekf")) {
+      if (quat_mode == QUAT_EKF) {
+        PX4_INFO("already on EKF mode\n");
       } else {
-        quat_mode = QUAT_ENU;
-        PX4_INFO("frame changed to ENU\n");
+        quat_mode = QUAT_EKF;
+        PX4_INFO("orientation now comes from EKF2\n");
       }
 
-    } else if (!strcmp(argv[2], "ned")) {
-      if (quat_mode == QUAT_NED) {
-        PX4_INFO("already in NED frame\n");
+    } else if (!strcmp(argv[2], "visual")) {
+      if (quat_mode == QUAT_VISUAL) {
+        PX4_INFO("already on visual mode\n");
       } else {
-        quat_mode = QUAT_NED;
-        PX4_INFO("frame changed to NED\n");
+        quat_mode = QUAT_VISUAL;
+        PX4_INFO("orientation now comes from vehicle_visual_odometry\n");
       }
 
     } else if (!strcmp(argv[2], "null")) {
       if (quat_mode == QUAT_NULL) {
-        PX4_INFO("already in null rotation mode\n");
+        PX4_INFO("already on no-rotation mode\n");
       } else {
         quat_mode = QUAT_NULL;
-        PX4_INFO("frame changed identity rotation and zero angular velocity\n");
+        PX4_INFO("orientation now considered zero\n");
       }
 
     } else {
-      PX4_INFO("usage: spinner switch {enu|ned|null}\n");
+      PX4_INFO("usage: spinner att {ekf|visual|null}\n");
       return -1;
     }
 
@@ -237,17 +237,6 @@ int spinner_main(int argc, char *argv[])
 
 	if (!strcmp(argv[1], "stop")) {
 		thread_should_exit = true;
-		return 0;
-	}
-
-	if (!strcmp(argv[1], "debug")) {
-		if (is_debug){
-      PX4_INFO("Toggling debug OFF\n");
-      is_debug = false;
-    } else {
-      PX4_INFO("Toggling debug ON\n");
-      is_debug = true;
-    }
 		return 0;
 	}
 
@@ -293,10 +282,16 @@ int spinner_main(int argc, char *argv[])
 	if (!strcmp(argv[1], "status")) {
 		if (thread_running) {
 			PX4_INFO("spinner is running");
-      if(quat_mode == QUAT_ENU){
-        PX4_INFO("quat_mode = ENU");
-      } else if(quat_mode == QUAT_NED){
-        PX4_INFO("quat_mode = NED");
+      switch(quat_mode){
+        case QUAT_EKF:
+          PX4_INFO("quat_mode = ekf");
+        break;
+        case QUAT_VISUAL:
+          PX4_INFO("quat_mode = visual");
+        break;
+        case QUAT_NULL:
+          PX4_INFO("quat_mode = null");
+        break;
       }
 
       if(goal_mode == GOAL_MANUAL){

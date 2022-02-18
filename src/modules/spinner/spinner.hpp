@@ -66,15 +66,13 @@
 #include <uORB/topics/vehicle_odometry.h>
 #include "spinner_parameters.hpp"
 
-#define QUAT_ENU 0
-#define QUAT_NED 1
+#define QUAT_EKF 0
+#define QUAT_VISUAL 1
 #define QUAT_NULL -1
-#define QUAT_EKF 5
-#define QUAT_VISUAL 10
 #define THRUST_SPIN 0
 #define THRUST_CONSTANT 1
-#define GOAL_MANUAL 0
-#define GOAL_SETPOINT 1
+#define GOAL_MANUAL 2
+#define GOAL_SETPOINT 5
 
 /* Prototypes */
 extern "C" int parameters_init(struct param_handles *h);
@@ -88,8 +86,6 @@ static int publish_actuators();
 static int read_topics();
 static matrix::Vector<float, 3> get_torque();
 static void control_attitude();
-matrix::Quatf q_red_from_vector(matrix::Vector3f vector_up);
-matrix::Vector3f v_red_from_quat(matrix::Quatf quat);
 
 static bool thread_should_exit = false;		/**< Daemon exit flag */
 static bool thread_running = false;		/**< Daemon status flag */
@@ -120,16 +116,15 @@ float wrapTo180(float angle_deg);
 
 static matrix::Vector3f tau(0.0f,0.0f,0.0f);
 static matrix::Vector3f thrust(0.0f,0.0f,0.0f);
-// static matrix::Vector3f v(0.0f,0.0f,1.0f);
 static matrix::Vector3f e(0.0f,0.0f,1.0f);
-static matrix::Vector3f v_null(1.0f,0.0f,1.0f);
-// e.normalize();
+
 static matrix::Quatf eq(0.0, e(0), e(1), e(2));
 static matrix::Quatf q(1,0,0,0);
 static matrix::Quatf qd(1,0,0,0);
 
 static matrix::Vector3f w(e*0);
 static matrix::Vector3f v(e);
+static matrix::Vector3f vdot(0, 0, 0);
 static matrix::Vector3f p(e);
 static matrix::Vector3f wd(0, 0, 0);
 static matrix::Vector3f vd(e);
@@ -151,16 +146,10 @@ Binv(B_inv_data);
 // static matrix::SquareMatrix<float, 3> B_;
 // static matrix::SquareMatrix<float, 3> J_;
 
-short int quat_mode = QUAT_NED;
-short int quat_source = QUAT_EKF;
+short int quat_mode = QUAT_EKF;
 short int thrust_mode = THRUST_SPIN;
 short int goal_mode = GOAL_SETPOINT;
 double rotor_velocity = 0.0f;
-static int time_0 = 0.0f;
-static int time_1 = 0.0f;
-float pot_energy = 0;
-bool is_debug = false;
-// bool s = false;
 
 #endif /* SPINNER_H */
 
