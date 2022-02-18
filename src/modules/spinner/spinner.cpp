@@ -68,17 +68,8 @@ static int spinner_thread_main(int argc, char *argv[])
 			if (fds[0].revents & POLLIN) {/* only run controller if attitude changed */
         read_topics(); // reads manual input, angular velocity and actuator
         set_att_message();
-        // time_1 = hrt_absolute_time();
-        // att_extra.freq = 1000. / (time_1 - time_0);
-        // actuator_control.control[0] = 1000. / (time_1 - time_0);
-
-        // time_0 = time_1;
         control_attitude();
-        att_extra.is_ned = quat_mode;
-        att_extra.is_thrust_spin = int(thrust_mode == THRUST_SPIN);
-        att_extra.is_debug = is_debug;
         publish_actuators();
-        publish_att_extra();
 			}
 		}
 	}

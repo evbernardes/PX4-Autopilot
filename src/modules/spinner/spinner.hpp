@@ -63,8 +63,6 @@
 #include <uORB/topics/vehicle_rates_setpoint.h>
 #include <uORB/topics/vehicle_status.h>
 #include <uORB/uORB.h>
-// #include <mavlink_shell.h>
-#include <uORB/topics/vehicle_attitude_extra.h>
 #include <uORB/topics/vehicle_odometry.h>
 #include "spinner_parameters.hpp"
 
@@ -101,14 +99,11 @@ static struct actuator_controls_s actuator_manual;
 static struct actuator_controls_s actuator_control;
 static struct vehicle_attitude_s att;
 static struct vehicle_odometry_s visual_odom;
-// static struct vehicle_attitude_s att_sp;
-static struct vehicle_attitude_extra_s att_extra;
+
 static struct vehicle_angular_velocity_s ang_vel;
 static struct vehicle_attitude_setpoint_s att_sp;
 
 static orb_advert_t actuator_pub;
-static orb_advert_t att_extra_pub;
-// orb_advert_t rates_pub;
 
 static int att_sub_fd;
 static int ang_vel_sub_fd;
